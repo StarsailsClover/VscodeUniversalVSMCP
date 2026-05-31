@@ -84,40 +84,50 @@ export class McpClient extends EventEmitter {
         this.outputProvider.log(`Starting MCP server: ${serverPath} --${transport}`);
 
         try {
+            // Create environment
+            const serverEnv = { ...process.env, VS_AUTO_DETECT: 'true' };
+
             // Spawn the MCP server process
-            this.process = spawn(serverPath, [`--${transport}`], {
+            const spawnOptions = {
                 stdio: ['pipe', 'pipe', 'pipe'],
-                env: {
-                    ...process.env,
-                    VS_AUTO_DETECT: 'true'
-                }
-            });
+                env: serverEnv
+            };
+            this.process = spawn(serverPath as string, [`--${transport}`], spawnOptions as any);
 
             // Handle stdout (MCP responses)
-            this.process.stdout?.on('data', (data: Buffer) => {
-                this.handleData(data.toString());
-            });
+            const stdout = this.process.stdout;
+            if (stdout) {
+                stdout.on('data', (data: Buffer) => {
+                    this.handleData(data.toString());
+                });
+            }
 
             // Handle stderr (logs)
-            this.process.stderr?.on('data', (data: Buffer) => {
-                const log = data.toString().trim();
-                if (log) {
-                    this.outputProvider.log(`[UVM] ${log}`);
-                }
-            });
+            const stderr = this.process.stderr;
+            if (stderr) {
+                stderr.on('data', (data: Buffer) => {
+                    const log = data.toString().trim();
+                    if (log) {
+                        this.outputProvider.log(`[UVM] ${log}`);
+                    }
+                });
+            }
 
             // Handle process exit
-            this.process.on('exit', (code) => {
-                this.outputProvider.log(`MCP server exited with code ${code}`);
-                this.connected = false;
-                this.emit('disconnected', code);
-                this.process = null;
-            });
+            const proc = this.process;
+            if (proc) {
+                proc.on('exit', (code) => {
+                    this.outputProvider.log(`MCP server exited with code ${code}`);
+                    this.connected = false;
+                    this.emit('disconnected', code);
+                    this.process = null;
+                });
 
-            this.process.on('error', (error) => {
-                this.outputProvider.logError(`MCP server error: ${error.message}`);
-                this.emit('error', error);
-            });
+                proc.on('error', (error: Error) => {
+                    this.outputProvider.logError(`MCP server error: ${error.message}`);
+                    this.emit('error', error);
+                });
+            }
 
             // Wait for server to initialize
             await this.waitForConnection();
@@ -153,13 +163,16 @@ export class McpClient extends EventEmitter {
 
         // Wait for graceful shutdown
         await new Promise<void>((resolve) => {
-            if (!this.process) {
+            const proc = this.process;
+            if (!proc) {
                 resolve();
                 return;
             }
-            this.process.on('exit', () => resolve());
+            proc.on('exit', () => resolve());
             setTimeout(() => {
-                this.process?.kill('SIGKILL');
+                if (this.process) {
+                    this.process.kill('SIGKILL');
+                }
                 resolve();
             }, 3000);
         });
@@ -201,12 +214,18 @@ export class McpClient extends EventEmitter {
             const json = JSON.stringify(request);
             this.outputProvider.logDebug(`-> ${json}`);
 
-            this.process?.stdin?.write(json + '\n', (error) => {
-                if (error) {
-                    this.pendingRequests.delete(request.id);
-                    reject(error);
-                }
-            });
+            const stdin = this.process?.stdin;
+            if (stdin) {
+                stdin.write(json + '\n', (error) => {
+                    if (error) {
+                        this.pendingRequests.delete(request.id);
+                        reject(error);
+                    }
+                });
+            } else {
+                this.pendingRequests.delete(request.id);
+                reject(new Error('Process stdin not available'));
+            }
 
             // Timeout after 30 seconds
             setTimeout(() => {
@@ -227,7 +246,10 @@ export class McpClient extends EventEmitter {
             method,
             params
         };
-        this.process?.stdin?.write(JSON.stringify(notification) + '\n');
+        const stdin = this.process?.stdin;
+        if (stdin) {
+            stdin.write(JSON.stringify(notification) + '\n');
+        }
     }
 
     /**

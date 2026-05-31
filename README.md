@@ -43,8 +43,8 @@ Connect AI Agents to Visual Studio 2026/2022 directly from VS Code through the M
 
 | Command | Keybinding | Description |
 |---------|------------|-------------|
-| UVM: Connect to VS | - | Connect to UniversalVSMCP server |
-| UVM: Disconnect from VS | - | Disconnect from server |
+| UVM: Connect to Agent | - | Connect to UniversalVSMCP agent |
+| UVM: Disconnect from Agent | - | Disconnect from agent |
 | UVM: Build Solution | `Ctrl+Shift+B` | Build the current solution |
 | UVM: Rebuild Solution | - | Clean and rebuild |
 | UVM: Clean Solution | - | Clean build outputs |

@@ -1,0 +1,17 @@
+{
+  "servers": {
+    "universal-vsmcp": {
+      "name": "Universal VS MCP",
+      "command": "universal-vsmcp",
+      "args": ["--stdio"],
+      "env": {
+        "VS_AUTO_DETECT": "true"
+      }
+    },
+    "universal-vsmcp-http": {
+      "name": "Universal VS MCP (HTTP)",
+      "url": "http://localhost:5000/sse",
+      "transport": "sse"
+    }
+  }
+}

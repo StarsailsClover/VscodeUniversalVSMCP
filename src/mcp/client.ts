@@ -47,6 +47,7 @@ export class McpClient extends EventEmitter {
     private buffer = '';
     private tools: McpTool[] = [];
     private connected = false;
+    private initTimeout: NodeJS.Timeout | null = null;
 
     constructor(
         private outputProvider: OutputChannelProvider,
@@ -83,29 +84,33 @@ export class McpClient extends EventEmitter {
 
         this.outputProvider.log(`Starting MCP server: ${serverPath} --${transport}`);
 
+        // Clear any existing timeout
+        if (this.initTimeout) {
+            clearTimeout(this.initTimeout);
+            this.initTimeout = null;
+        }
+
         try {
             // Create environment
             const serverEnv = { ...process.env, VS_AUTO_DETECT: 'true' };
 
             // Spawn the MCP server process
-            const spawnOptions = {
+            const spawnOptions: any = {
                 stdio: ['pipe', 'pipe', 'pipe'],
                 env: serverEnv
             };
-            this.process = spawn(serverPath as string, [`--${transport}`], spawnOptions as any);
+            this.process = spawn(serverPath as string, [`--${transport}`], spawnOptions);
 
             // Handle stdout (MCP responses)
-            const stdout = this.process.stdout;
-            if (stdout) {
-                stdout.on('data', (data: Buffer) => {
+            if (this.process.stdout) {
+                this.process.stdout.on('data', (data: Buffer) => {
                     this.handleData(data.toString());
                 });
             }
 
             // Handle stderr (logs)
-            const stderr = this.process.stderr;
-            if (stderr) {
-                stderr.on('data', (data: Buffer) => {
+            if (this.process.stderr) {
+                this.process.stderr.on('data', (data: Buffer) => {
                     const log = data.toString().trim();
                     if (log) {
                         this.outputProvider.log(`[UVM] ${log}`);
@@ -114,22 +119,21 @@ export class McpClient extends EventEmitter {
             }
 
             // Handle process exit
-            const proc = this.process;
-            if (proc) {
-                proc.on('exit', (code) => {
+            if (this.process) {
+                this.process.on('exit', (code) => {
                     this.outputProvider.log(`MCP server exited with code ${code}`);
                     this.connected = false;
                     this.emit('disconnected', code);
                     this.process = null;
                 });
 
-                proc.on('error', (error: Error) => {
+                this.process.on('error', (error: Error) => {
                     this.outputProvider.logError(`MCP server error: ${error.message}`);
                     this.emit('error', error);
                 });
             }
 
-            // Wait for server to initialize
+            // Wait for server to initialize with timeout
             await this.waitForConnection();
 
             // List available tools
@@ -149,6 +153,11 @@ export class McpClient extends EventEmitter {
      * Disconnect from MCP server
      */
     async disconnect(): Promise<void> {
+        if (this.initTimeout) {
+            clearTimeout(this.initTimeout);
+            this.initTimeout = null;
+        }
+
         if (!this.process) {
             return;
         }
@@ -300,24 +309,42 @@ export class McpClient extends EventEmitter {
 
     /**
      * Wait for MCP server to be ready
+     * Simplified version that doesn't wait for specific strings
      */
     private async waitForConnection(): Promise<void> {
         return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                reject(new Error('MCP server initialization timeout'));
-            }, 10000);
+            // Clear any existing timeout
+            if (this.initTimeout) {
+                clearTimeout(this.initTimeout);
+            }
 
-            const checkReady = () => {
-                // Check if we received any data indicating server is ready
-                if (this.buffer.includes('UniversalVSMCP') || this.buffer.includes('MCP Server')) {
-                    clearTimeout(timeout);
+            // Set timeout
+            this.initTimeout = setTimeout(() => {
+                // If we have a process and it's running, consider it ready
+                if (this.process && this.process.exitCode === null) {
+                    this.outputProvider.log('MCP server process started (timeout reached but process is running)');
                     resolve();
                 } else {
-                    setTimeout(checkReady, 500);
+                    reject(new Error('MCP server initialization timeout'));
+                }
+            }, 5000); // Reduced to 5 seconds
+
+            // Also resolve if we get any data
+            const checkData = () => {
+                if (this.buffer.length > 0) {
+                    if (this.initTimeout) {
+                        clearTimeout(this.initTimeout);
+                        this.initTimeout = null;
+                    }
+                    this.outputProvider.log('MCP server responded');
+                    resolve();
+                } else {
+                    setTimeout(checkData, 100);
                 }
             };
 
-            checkReady();
+            // Start checking for data
+            setTimeout(checkData, 500);
         });
     }
 
@@ -325,13 +352,18 @@ export class McpClient extends EventEmitter {
      * Refresh list of available tools
      */
     private async refreshTools(): Promise<void> {
-        const request: McpRequest = {
-            jsonrpc: '2.0',
-            id: ++this.requestId,
-            method: 'tools/list'
-        };
+        try {
+            const request: McpRequest = {
+                jsonrpc: '2.0',
+                id: ++this.requestId,
+                method: 'tools/list'
+            };
 
-        const result = await this.sendRequest(request);
-        this.tools = result?.tools || [];
+            const result = await this.sendRequest(request);
+            this.tools = result?.tools || [];
+        } catch (error) {
+            this.outputProvider.logWarning(`Failed to refresh tools: ${error}`);
+            this.tools = [];
+        }
     }
 }

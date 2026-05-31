@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { McpClient } from '../mcp/client';
+import { ConnectionRouter } from '../mcp/connection-router';
+import { ConnectionType } from '../mcp/connection-interface';
 
 /**
  * Solution Item for Tree View
@@ -29,10 +30,8 @@ export class SolutionItem extends vscode.TreeItem {
                 break;
         }
 
-        // Set context value for menu contributions
         this.contextValue = type;
 
-        // Set tooltip
         if (path) {
             this.tooltip = path;
         }
@@ -46,10 +45,10 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<SolutionItem | undefined | null | void> = new vscode.EventEmitter<SolutionItem | undefined | null | void>();
     readonly onDidChangeTreeData: vscode.Event<SolutionItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
-    constructor(private client: McpClient) {
+    constructor(private connectionRouter: ConnectionRouter) {
         // Refresh when connection state changes
-        this.client.on('connected', () => this.refresh());
-        this.client.on('disconnected', () => this.refresh());
+        this.connectionRouter.on('connected', () => this.refresh());
+        this.connectionRouter.on('disconnected', () => this.refresh());
     }
 
     /**
@@ -63,7 +62,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
      * Get children of element
      */
     async getChildren(element?: SolutionItem): Promise<SolutionItem[]> {
-        if (!this.client.isConnected()) {
+        if (!this.connectionRouter.isConnected()) {
             return [];
         }
 
@@ -97,7 +96,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
      */
     private async getSolutionRoot(): Promise<SolutionItem[]> {
         try {
-            const result = await this.client.callTool('get_solution_info', {});
+            const result = await this.connectionRouter.callTool('get_solution_info', {});
             
             if (!result || !result.solutionName) {
                 return [new SolutionItem('No solution open', vscode.TreeItemCollapsibleState.None, 'solution')];
@@ -121,7 +120,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
      */
     private async getProjects(): Promise<SolutionItem[]> {
         try {
-            const result = await this.client.callTool('get_solution_projects', {});
+            const result = await this.connectionRouter.callTool('get_solution_projects', {});
             
             if (!result || !Array.isArray(result.projects)) {
                 return [];
@@ -143,7 +142,7 @@ export class SolutionProvider implements vscode.TreeDataProvider<SolutionItem> {
      */
     private async getProjectFiles(projectPath: string): Promise<SolutionItem[]> {
         try {
-            const result = await this.client.callTool('get_project_files', {
+            const result = await this.connectionRouter.callTool('get_project_files', {
                 projectName: projectPath
             });
             

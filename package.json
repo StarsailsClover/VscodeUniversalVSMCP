@@ -2,7 +2,7 @@
   "name": "universal-vsmcp",
   "displayName": "Universal VS MCP",
   "description": "Connect AI Agents to Visual Studio 2026/2022 and VS Code through MCP Protocol",
-  "version": "26.0.0",
+  "version": "26.0.2",
   "publisher": "StarsailsClover",
   "license": "MIT",
   "repository": {
@@ -132,22 +132,13 @@
         }
       ]
     },
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "uvm-explorer",
-          "title": "Universal VS MCP",
-          "icon": "$(debug-alt)"
-        }
-      ]
-    },
     "configuration": {
       "title": "Universal VS MCP",
       "properties": {
         "uvm.serverPath": {
           "type": "string",
           "default": "universal-vsmcp",
-          "description": "Path to UniversalVSMCP executable (e.g., 'universal-vsmcp' or full path)"
+          "description": "Path to UniversalVSMCP executable"
         },
         "uvm.transport": {
           "type": "string",
@@ -161,7 +152,17 @@
         "uvm.http.url": {
           "type": "string",
           "default": "http://localhost:5000/sse",
-          "description": "HTTP endpoint for MCP connection (when transport is 'http')"
+          "description": "HTTP endpoint for MCP connection"
+        },
+        "uvm.connectionStrategy": {
+          "type": "string",
+          "enum": [
+            "prefer-native",
+            "always-stdio",
+            "native-only"
+          ],
+          "default": "prefer-native",
+          "description": "Connection strategy: prefer-native, always-stdio, or native-only"
         },
         "uvm.autoConnect": {
           "type": "boolean",
@@ -176,7 +177,7 @@
         "uvm.security.autoConfirmRead": {
           "type": "boolean",
           "default": true,
-          "description": "Auto-confirm read operations in trusted workspaces"
+          "description": "Auto-confirm read operations"
         },
         "uvm.security.alwaysConfirmWrite": {
           "type": "boolean",
@@ -202,7 +203,7 @@
             "error"
           ],
           "default": "info",
-          "description": "Log level for UVM output channel"
+          "description": "Log level"
         }
       }
     },
@@ -240,8 +241,5 @@
     "typescript": "^5.4.0",
     "@vscode/test-electron": "^2.3.9",
     "@vscode/vsce": "^2.24.0"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
   }
 }

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ConnectionManager } from '../mcp/connection';
+import { ConnectionRouter } from '../mcp/connection-router';
 import { OutputChannelProvider } from './output';
 import { SecurityManager } from '../security/trust';
 
@@ -8,44 +8,34 @@ import { SecurityManager } from '../security/trust';
  */
 export class CommandProvider {
     constructor(
-        private connectionManager: ConnectionManager,
+        private connectionRouter: ConnectionRouter,
         private outputProvider: OutputChannelProvider,
         private securityManager: SecurityManager
     ) {}
 
     /**
-     * Connect to MCP server
-     */
-    async connect(): Promise<void> {
-        const connected = await this.connectionManager.connect();
-        if (connected) {
-            this.outputProvider.log('Connected successfully');
-        }
-    }
-
-    /**
-     * Disconnect from MCP server
-     */
-    async disconnect(): Promise<void> {
-        await this.connectionManager.disconnect();
-        this.outputProvider.log('Disconnected');
-    }
-
-    /**
      * Build solution
      */
     async build(): Promise<void> {
-        if (!this.connectionManager.isConnected()) {
-            vscode.window.showWarningMessage('Not connected to Universal VS MCP');
-            return;
+        if (!this.connectionRouter.isConnected()) {
+            const result = await vscode.window.showWarningMessage(
+                'Not connected to Universal VS MCP',
+                'Connect Now',
+                'Cancel'
+            );
+            if (result === 'Connect Now') {
+                const connected = await this.connectionRouter.connect();
+                if (!connected) return;
+            } else {
+                return;
+            }
         }
 
-        // Check if confirmation is required
         if (await this.securityManager.confirmBuild()) {
             this.outputProvider.log('Building solution...');
             
             try {
-                const result = await this.connectionManager.getClient().callTool('build_solution', {});
+                const result = await this.connectionRouter.callTool('build_solution', {});
                 this.outputProvider.log(`Build result: ${JSON.stringify(result)}`);
                 vscode.window.showInformationMessage('Build completed successfully');
             } catch (error) {
@@ -59,7 +49,7 @@ export class CommandProvider {
      * Rebuild solution
      */
     async rebuild(): Promise<void> {
-        if (!this.connectionManager.isConnected()) {
+        if (!this.connectionRouter.isConnected()) {
             vscode.window.showWarningMessage('Not connected to Universal VS MCP');
             return;
         }
@@ -68,7 +58,7 @@ export class CommandProvider {
             this.outputProvider.log('Rebuilding solution...');
             
             try {
-                const result = await this.connectionManager.getClient().callTool('rebuild_solution', {});
+                const result = await this.connectionRouter.callTool('rebuild_solution', {});
                 this.outputProvider.log(`Rebuild result: ${JSON.stringify(result)}`);
                 vscode.window.showInformationMessage('Rebuild completed');
             } catch (error) {
@@ -82,7 +72,7 @@ export class CommandProvider {
      * Clean solution
      */
     async clean(): Promise<void> {
-        if (!this.connectionManager.isConnected()) {
+        if (!this.connectionRouter.isConnected()) {
             vscode.window.showWarningMessage('Not connected to Universal VS MCP');
             return;
         }
@@ -91,7 +81,7 @@ export class CommandProvider {
             this.outputProvider.log('Cleaning solution...');
             
             try {
-                const result = await this.connectionManager.getClient().callTool('clean_solution', {});
+                const result = await this.connectionRouter.callTool('clean_solution', {});
                 this.outputProvider.log(`Clean result: ${JSON.stringify(result)}`);
                 vscode.window.showInformationMessage('Clean completed');
             } catch (error) {
@@ -105,7 +95,7 @@ export class CommandProvider {
      * Start debugging
      */
     async debug(): Promise<void> {
-        if (!this.connectionManager.isConnected()) {
+        if (!this.connectionRouter.isConnected()) {
             vscode.window.showWarningMessage('Not connected to Universal VS MCP');
             return;
         }
@@ -113,7 +103,7 @@ export class CommandProvider {
         this.outputProvider.log('Starting debug session...');
         
         try {
-            await this.connectionManager.getClient().callTool('start_debugging', {});
+            await this.connectionRouter.callTool('start_debugging', {});
             vscode.window.showInformationMessage('Debug session started in Visual Studio');
         } catch (error) {
             this.outputProvider.logError(`Debug failed: ${error}`);
@@ -125,7 +115,7 @@ export class CommandProvider {
      * Find in solution
      */
     async find(): Promise<void> {
-        if (!this.connectionManager.isConnected()) {
+        if (!this.connectionRouter.isConnected()) {
             vscode.window.showWarningMessage('Not connected to Universal VS MCP');
             return;
         }
@@ -142,7 +132,7 @@ export class CommandProvider {
         this.outputProvider.log(`Searching for: ${searchTerm}`);
         
         try {
-            const result = await this.connectionManager.getClient().callTool('find_in_files', {
+            const result = await this.connectionRouter.callTool('find_in_files', {
                 searchText: searchTerm
             });
             this.outputProvider.log(`Find result: ${JSON.stringify(result)}`);
@@ -155,13 +145,13 @@ export class CommandProvider {
      * Get solution information
      */
     async getSolutionInfo(): Promise<void> {
-        if (!this.connectionManager.isConnected()) {
+        if (!this.connectionRouter.isConnected()) {
             vscode.window.showWarningMessage('Not connected to Universal VS MCP');
             return;
         }
 
         try {
-            const result = await this.connectionManager.getClient().callTool('get_solution_info', {});
+            const result = await this.connectionRouter.callTool('get_solution_info', {});
             
             const panel = vscode.window.createWebviewPanel(
                 'uvmSolutionInfo',

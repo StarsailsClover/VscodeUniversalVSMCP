@@ -28,10 +28,10 @@ export class OutputChannelProvider implements vscode.Disposable {
     }
 
     /**
-     * Hide output channel
+     * Get the underlying VS Code output channel
      */
-    hide(): void {
-        // Output channels cannot be hidden programmatically in VS Code
+    getChannel(): vscode.OutputChannel {
+        return this.channel;
     }
 
     /**

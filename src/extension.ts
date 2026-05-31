@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { McpClient } from './mcp/client';
-import { ConnectionManager } from './mcp/connection';
+import { ConnectionRouter, ConnectionStrategy } from './mcp/connection-router';
+import { ConnectionType } from './mcp/connection-interface';
 import { CommandProvider } from './providers/commands';
 import { SolutionProvider } from './providers/solution';
 import { OutputChannelProvider } from './providers/output';
@@ -10,7 +10,6 @@ import { SecurityManager } from './security/trust';
 
 /**
  * Extension activation entry point
- * Called when VS Code activates the extension
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     console.log('Universal VS MCP extension is activating...');
@@ -21,7 +20,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const configManager = new ConfigurationManager();
     const securityManager = new SecurityManager();
 
-    // Add to subscriptions for disposal
     context.subscriptions.push(outputProvider, statusBarProvider);
 
     // Check workspace trust
@@ -38,19 +36,54 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return;
     }
 
-    // Initialize MCP client
-    const mcpClient = new McpClient(outputProvider, configManager);
-    const connectionManager = new ConnectionManager(mcpClient, outputProvider, statusBarProvider);
+    // Initialize Connection Router (the core of hybrid architecture)
+    const connectionRouter = new ConnectionRouter(outputProvider, configManager);
 
-    // Initialize providers
-    const commandProvider = new CommandProvider(connectionManager, outputProvider, securityManager);
-    const solutionProvider = new SolutionProvider(mcpClient);
+    // Listen to connection events
+    connectionRouter.on('connected', (type: ConnectionType) => {
+        statusBarProvider.setConnected(type);
+        vscode.commands.executeCommand('setContext', 'uvm.connected', true);
+        
+        if (type === ConnectionType.Native) {
+            outputProvider.log('Connected via VS Code native MCP');
+            vscode.window.showInformationMessage('Connected to Universal VS MCP (Native Mode)');
+        } else if (type === ConnectionType.Stdio) {
+            outputProvider.log('Connected via extension stdio');
+            vscode.window.showInformationMessage('Connected to Universal VS MCP (Extension Mode)');
+        }
+    });
+
+    connectionRouter.on('disconnected', () => {
+        statusBarProvider.setDisconnected();
+        vscode.commands.executeCommand('setContext', 'uvm.connected', false);
+        outputProvider.log('Disconnected from MCP server');
+    });
+
+    connectionRouter.on('connection-weak', () => {
+        statusBarProvider.setWeak();
+        outputProvider.logWarning('Connection is weak');
+    });
+
+    // Initialize providers with connection router
+    const commandProvider = new CommandProvider(connectionRouter, outputProvider, securityManager);
+    const solutionProvider = new SolutionProvider(connectionRouter);
 
     // Register commands
     const disposables = [
         // Connection commands
-        vscode.commands.registerCommand('uvm.connect', () => commandProvider.connect()),
-        vscode.commands.registerCommand('uvm.disconnect', () => commandProvider.disconnect()),
+        vscode.commands.registerCommand('uvm.connect', async () => {
+            statusBarProvider.setConnecting();
+            const connected = await connectionRouter.connect();
+            if (!connected) {
+                statusBarProvider.setError('Connection failed');
+                vscode.window.showErrorMessage('Failed to connect to Universal VS MCP');
+            }
+        }),
+        
+        vscode.commands.registerCommand('uvm.disconnect', async () => {
+            await connectionRouter.disconnect();
+            statusBarProvider.setDisconnected();
+        }),
         
         // Build commands
         vscode.commands.registerCommand('uvm.build', () => commandProvider.build()),
@@ -71,7 +104,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         // Tree view
         vscode.window.registerTreeDataProvider('uvm.solutionExplorer', solutionProvider),
 
-        // Auto-connect if configured
+        // Configuration change listener
         vscode.workspace.onDidChangeConfiguration((e) => {
             if (e.affectsConfiguration('uvm')) {
                 configManager.reload();
@@ -82,19 +115,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(...disposables);
 
     // Auto-connect if enabled
-    if (configManager.get('autoConnect')) {
-        setTimeout(() => {
-            commandProvider.connect();
-        }, 3000); // Delay to allow VS Code to fully initialize
+    if (configManager.isAutoConnect()) {
+        setTimeout(async () => {
+            statusBarProvider.setConnecting();
+            const connected = await connectionRouter.connect();
+            if (!connected) {
+                statusBarProvider.setError('Auto-connect failed');
+            }
+        }, 3000);
+    } else {
+        statusBarProvider.setDisconnected();
     }
 
     outputProvider.log('Universal VS MCP extension activated successfully!');
-    statusBarProvider.setDisconnected();
+    outputProvider.log(`Connection strategy: ${configManager.get('connectionStrategy') || ConnectionStrategy.PreferNative}`);
 }
 
 /**
  * Extension deactivation
- * Called when VS Code shuts down or extension is disabled
  */
 export function deactivate(): void {
     console.log('Universal VS MCP extension is deactivating...');

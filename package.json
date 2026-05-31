@@ -1,0 +1,247 @@
+{
+  "name": "universal-vsmcp",
+  "displayName": "Universal VS MCP",
+  "description": "Connect AI Agents to Visual Studio 2026/2022 and VS Code through MCP Protocol",
+  "version": "26.0.0",
+  "publisher": "StarsailsClover",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/StarsailsClover/vscode-universal-vsmcp"
+  },
+  "homepage": "https://github.com/StarsailsClover/UniversalVSMCP",
+  "bugs": {
+    "url": "https://github.com/StarsailsClover/UniversalVSMCP/issues"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Machine Learning",
+    "Other",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "visual-studio",
+    "mcp",
+    "ai-agent",
+    "claude",
+    "cursor",
+    "dotnet",
+    "build",
+    "debug"
+  ],
+  "activationEvents": [
+    "onCommand:uvm.connect",
+    "onCommand:uvm.build",
+    "onCommand:uvm.debug",
+    "workspaceContains:**/*.sln",
+    "workspaceContains:**/*.csproj"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "uvm.connect",
+        "title": "Connect to VS",
+        "category": "UVM",
+        "icon": "$(debug-start)"
+      },
+      {
+        "command": "uvm.disconnect",
+        "title": "Disconnect from VS",
+        "category": "UVM",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "uvm.build",
+        "title": "Build Solution",
+        "category": "UVM",
+        "icon": "$(debug-start)"
+      },
+      {
+        "command": "uvm.rebuild",
+        "title": "Rebuild Solution",
+        "category": "UVM",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "uvm.clean",
+        "title": "Clean Solution",
+        "category": "UVM",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "uvm.debug",
+        "title": "Start Debugging",
+        "category": "UVM",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "uvm.find",
+        "title": "Find in Solution",
+        "category": "UVM",
+        "icon": "$(search)"
+      },
+      {
+        "command": "uvm.getSolutionInfo",
+        "title": "Get Solution Info",
+        "category": "UVM",
+        "icon": "$(info)"
+      },
+      {
+        "command": "uvm.showOutput",
+        "title": "Show UVM Output",
+        "category": "UVM",
+        "icon": "$(output)"
+      },
+      {
+        "command": "uvm.showTrustSettings",
+        "title": "Workspace Trust Settings",
+        "category": "UVM",
+        "icon": "$(shield)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "uvm.connect",
+          "when": "!uvm.connected"
+        },
+        {
+          "command": "uvm.disconnect",
+          "when": "uvm.connected"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "uvm.find",
+          "group": "9_cutcopypaste@5",
+          "when": "uvm.connected"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "uvm.solutionExplorer",
+          "name": "VS Solution",
+          "when": "uvm.connected",
+          "icon": "$(project)"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "uvm-explorer",
+          "title": "Universal VS MCP",
+          "icon": "$(debug-alt)"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Universal VS MCP",
+      "properties": {
+        "uvm.serverPath": {
+          "type": "string",
+          "default": "universal-vsmcp",
+          "description": "Path to UniversalVSMCP executable (e.g., 'universal-vsmcp' or full path)"
+        },
+        "uvm.transport": {
+          "type": "string",
+          "enum": [
+            "stdio",
+            "http"
+          ],
+          "default": "stdio",
+          "description": "Transport mode for MCP connection"
+        },
+        "uvm.http.url": {
+          "type": "string",
+          "default": "http://localhost:5000/sse",
+          "description": "HTTP endpoint for MCP connection (when transport is 'http')"
+        },
+        "uvm.autoConnect": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically connect when VS Code starts"
+        },
+        "uvm.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show connection status notifications"
+        },
+        "uvm.security.autoConfirmRead": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-confirm read operations in trusted workspaces"
+        },
+        "uvm.security.alwaysConfirmWrite": {
+          "type": "boolean",
+          "default": false,
+          "description": "Always confirm write operations"
+        },
+        "uvm.security.alwaysConfirmDelete": {
+          "type": "boolean",
+          "default": true,
+          "description": "Always confirm delete operations"
+        },
+        "uvm.security.alwaysConfirmBuild": {
+          "type": "boolean",
+          "default": false,
+          "description": "Always confirm build operations"
+        },
+        "uvm.logLevel": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "default": "info",
+          "description": "Log level for UVM output channel"
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "uvm.build",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b",
+        "when": "uvm.connected"
+      },
+      {
+        "command": "uvm.debug",
+        "key": "f5",
+        "mac": "f5",
+        "when": "uvm.connected"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.0",
+    "@vscode/test-electron": "^2.3.9",
+    "@vscode/vsce": "^2.24.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}

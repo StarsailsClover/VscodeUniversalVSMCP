@@ -204,6 +204,16 @@
           ],
           "default": "info",
           "description": "Log level"
+        },
+        "uvm.server.autoStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Auto-start Extension HTTP Server on activation"
+        },
+        "uvm.http.port": {
+          "type": "number",
+          "default": 5001,
+          "description": "Extension HTTP Server port"
         }
       }
     },

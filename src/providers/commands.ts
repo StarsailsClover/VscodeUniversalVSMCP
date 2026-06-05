@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { ConnectionRouter } from '../mcp/connection-router';
 import { OutputChannelProvider } from './output';
 import { SecurityManager } from '../security/trust';
+import { ExtensionHttpServer } from '../server/ExtensionHttpServer';
 
 /**
  * Command Provider - handles all VS Code commands
@@ -10,8 +11,23 @@ export class CommandProvider {
     constructor(
         private connectionRouter: ConnectionRouter,
         private outputProvider: OutputChannelProvider,
-        private securityManager: SecurityManager
+        private securityManager: SecurityManager,
+        private httpServer?: ExtensionHttpServer
     ) {}
+
+    /**
+     * Connect to MCP server
+     */
+    async connect(): Promise<boolean> {
+        return await this.connectionRouter.connect();
+    }
+
+    /**
+     * Disconnect from MCP server
+     */
+    async disconnect(): Promise<void> {
+        await this.connectionRouter.disconnect();
+    }
 
     /**
      * Build solution

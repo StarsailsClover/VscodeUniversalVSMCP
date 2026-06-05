@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as http from 'http';
 import { EventEmitter } from 'events';
-import { McpServer, McpTool } from './mcp/types';
+import { McpServer, McpTool } from '../mcp/types';
 
 /**
  * VS Code Extension HTTP Server
@@ -318,5 +318,12 @@ export class ExtensionHttpServer extends EventEmitter {
      */
     getPort(): number {
         return this.port;
+    }
+
+    /**
+     * Dispose server resources
+     */
+    dispose(): void {
+        this.stop();
     }
 }

@@ -63,6 +63,15 @@ export class StatusBarProvider implements vscode.Disposable {
     }
 
     /**
+     * Set status to using HTTP mode
+     */
+    setHttpMode(): void {
+        this.statusBarItem.text = '$(debug-start) UVM: HTTP';
+        this.statusBarItem.tooltip = 'Universal VS MCP: Using HTTP connection';
+        this.statusBarItem.backgroundColor = undefined;
+    }
+
+    /**
      * Set status to error
      */
     setError(message: string): void {

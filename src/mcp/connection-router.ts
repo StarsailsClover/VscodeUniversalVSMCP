@@ -3,6 +3,7 @@ import { EventEmitter } from 'events';
 import { IMcpConnection, ConnectionType, ConnectionStatus } from './connection-interface';
 import { NativeMcpDetector } from './native-detector';
 import { StdioMcpClient } from './stdio-client';
+import { HttpMcpClient } from './http-client';
 import { OutputChannelProvider } from '../providers/output';
 import { ConfigurationManager } from './config';
 
@@ -15,7 +16,11 @@ export enum ConnectionStrategy {
     /** Always use stdio (extension-managed) */
     AlwaysStdio = 'always-stdio',
     /** Try native only, fail if not available */
-    NativeOnly = 'native-only'
+    NativeOnly = 'native-only',
+    /** Use HTTP connection */
+    Http = 'http',
+    /** Prefer HTTP, fallback to stdio */
+    PreferHttp = 'prefer-http'
 }
 
 /**
@@ -96,6 +101,9 @@ export class ConnectionRouter extends EventEmitter {
                 return await this.connectAlwaysStdio();
             case ConnectionStrategy.NativeOnly:
                 return await this.connectNativeOnly();
+            case ConnectionStrategy.Http:
+            case ConnectionStrategy.PreferHttp:
+                return await this.connectHttp();
             default:
                 return await this.connectPreferNative();
         }
@@ -225,6 +233,40 @@ export class ConnectionRouter extends EventEmitter {
                 this.reconnectAttempts++;
                 this.outputProvider.log(`Attempting reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
                 await new Promise(r => setTimeout(r, 2000));
+                return await this.connectStdio();
+            }
+            
+            return false;
+        }
+    }
+
+    /**
+     * Connect via HTTP
+     */
+    private async connectHttp(): Promise<boolean> {
+        try {
+            this.outputProvider.log('Starting HTTP connection...');
+            
+            const httpClient = new HttpMcpClient(
+                this.outputProvider,
+                this.configManager
+            );
+
+            this.connection = httpClient;
+            await this.connection.connect();
+            
+            this.emit('connected', ConnectionType.Http);
+            this.reconnectAttempts = 0;
+            this.setupHealthCheck();
+            
+            return true;
+        } catch (error) {
+            this.outputProvider.logError(`HTTP connection failed: ${error}`);
+            this.connection = null;
+            
+            // For PreferHttp strategy, fallback to stdio
+            if (this.strategy === ConnectionStrategy.PreferHttp) {
+                this.outputProvider.log('HTTP failed, falling back to stdio...');
                 return await this.connectStdio();
             }
             

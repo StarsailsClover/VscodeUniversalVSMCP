@@ -2,7 +2,7 @@
   "name": "universal-vsmcp",
   "displayName": "Universal VS MCP",
   "description": "Connect AI Agents to Visual Studio 2026/2022 and VS Code through MCP Protocol",
-  "version": "26.2.0-rc2",
+  "version": "26.2.0-rc3",
   "publisher": "StarsailsClover",
   "license": "MIT",
   "repository": {

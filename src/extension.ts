@@ -39,7 +39,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const httpServer = new ExtensionHttpServer(outputProvider.getChannel());
     
     // Start HTTP server if configured
-    const autoStartServer = configManager.get('server.autoStart', false);
+    const autoStartServer = configManager.getWithDefault('server.autoStart', false);
     if (autoStartServer) {
         try {
             statusBarProvider.setConnecting();
@@ -174,7 +174,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
 
     outputProvider.log('Universal VS MCP extension activated successfully!');
-    outputProvider.log(`Connection strategy: ${configManager.get('connectionStrategy', 'prefer-native')}`);
+    outputProvider.log(`Connection strategy: ${configManager.getWithDefault('connectionStrategy', 'prefer-native')}`);
     
     if (httpServer.getIsRunning()) {
         outputProvider.log(`HTTP Server running on port ${httpServer.getPort()}`);

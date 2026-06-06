@@ -1,16 +1,31 @@
-out
-dist
-node_modules
-.vscode-test/
+# Link2VS Suite - VUV .gitignore
+# RC3 Pre-Release Cleanup
+
+## Build outputs
+out/
+dist/
+node_modules/
 *.vsix
+
+## IDE
+.vs/
+.vscode/
+*.user
+
+## Logs
+*.log
+logs/
+
+## OS
 .DS_Store
 Thumbs.db
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.npm
-.eslintcache
-*.tsbuildinfo
-coverage/
-.nyc_output/
+
+## Local config
+.vscode/settings.local.json
+
+## Release packages
+*.zip
+release/
+
+## Dependencies
+package-lock.json

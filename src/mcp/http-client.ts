@@ -3,24 +3,6 @@ import { IMcpConnection, ConnectionType, McpTool } from './connection-interface'
 import { OutputChannelProvider } from '../providers/output';
 import { ConfigurationManager } from './config';
 
-interface McpRequest {
-    jsonrpc: '2.0';
-    id: number | string;
-    method: string;
-    params?: any;
-}
-
-interface McpResponse {
-    jsonrpc: '2.0';
-    id: number | string;
-    result?: any;
-    error?: {
-        code: number;
-        message: string;
-        data?: any;
-    };
-}
-
 export class HttpMcpClient extends EventEmitter implements IMcpConnection {
     readonly type = ConnectionType.Http;
     private requestId = 0;
@@ -43,7 +25,7 @@ export class HttpMcpClient extends EventEmitter implements IMcpConnection {
     async connect(): Promise<void> {
         try {
             this.outputProvider.log(`Connecting to HTTP MCP server at ${this.baseUrl}...`);
-            const healthUrl = this.baseUrl.replace('/sse', '/health');
+            const healthUrl = `${this.getHttpRoot()}/health`;
             const response = await fetch(healthUrl);
             
             if (!response.ok) {
@@ -69,7 +51,7 @@ export class HttpMcpClient extends EventEmitter implements IMcpConnection {
 
     private async discoverTools(): Promise<void> {
         try {
-            const response = await fetch(`${this.baseUrl}/tools`);
+            const response = await fetch(`${this.getHttpRoot()}/tools`);
             if (response.ok) {
                 const data = await response.json() as { tools?: McpTool[] };
                 this.tools = data.tools || [];
@@ -87,17 +69,10 @@ export class HttpMcpClient extends EventEmitter implements IMcpConnection {
         }
 
         this.requestId++;
-        const id = this.requestId;
-
-        const request: McpRequest = {
-            jsonrpc: '2.0',
-            id,
-            method: 'tools/call',
-            params: { name, arguments: args }
-        };
+        const request = { name, arguments: args };
 
         try {
-            const response = await fetch(`${this.baseUrl}/call`, {
+            const response = await fetch(`${this.getHttpRoot()}/tools/call`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(request)
@@ -107,11 +82,11 @@ export class HttpMcpClient extends EventEmitter implements IMcpConnection {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            const data = await response.json() as McpResponse;
+            const data = await response.json() as { success?: boolean; content?: any; error?: string };
             if (data.error) {
-                throw new Error(data.error.message);
+                throw new Error(data.error);
             }
-            return data.result;
+            return data.content ?? data;
         } catch (error) {
             this.outputProvider.logError(`Tool call failed: ${error}`);
             throw error;
@@ -124,11 +99,15 @@ export class HttpMcpClient extends EventEmitter implements IMcpConnection {
 
     async healthCheck(): Promise<boolean> {
         try {
-            const healthUrl = this.baseUrl.replace('/sse', '/health');
+            const healthUrl = `${this.getHttpRoot()}/health`;
             const response = await fetch(healthUrl);
             return response.ok;
         } catch {
             return false;
         }
+    }
+
+    private getHttpRoot(): string {
+        return this.baseUrl.replace(/\/sse\/?$/, '').replace(/\/$/, '');
     }
 }

@@ -133,7 +133,7 @@ export class ExtensionHttpServer extends EventEmitter {
     private handleInfo(req: http.IncomingMessage, res: http.ServerResponse): void {
         const info = {
             name: 'vscode-universal-vsmcp',
-            version: '26.0.3',
+            version: '26.2.0',
             description: 'VS Code Extension MCP Server',
             vscodeVersion: vscode.version,
             workspace: vscode.workspace.workspaceFolders?.[0]?.name || 'none'
